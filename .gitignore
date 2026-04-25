@@ -40,3 +40,7 @@ Thumbs.db
 # ===== Otros =====
 *.local
 coverage/
+
+# No versionar (entrega / SQL local)
+INFORME_TECNICO.md
+backend/migrations/
