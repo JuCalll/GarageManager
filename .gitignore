@@ -1,0 +1,42 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Entornos virtuales
+backend/venv/
+backend/.venv/
+.env
+.env.local
+.env.*.local
+
+# ===== Node =====
+node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# ===== Logs =====
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ===== IDE / SO =====
+.cursor/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.sw?
+
+# ===== Otros =====
+*.local
+coverage/
