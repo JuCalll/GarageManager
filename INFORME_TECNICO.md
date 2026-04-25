@@ -350,6 +350,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 **Tokens duales (access + refresh)** (`backend/app/security.py` — implementación real con `python-jose` y fechas en UTC):
 
 ```python
+from jose import jwt
+from datetime import datetime, timedelta, timezone
+# SECRET_KEY y ALGORITHM vienen de app.config
+
 def _build_token(subject: str, expires_delta: timedelta, token_type: str) -> str:
     expire = datetime.now(timezone.utc) + expires_delta
     payload = {"sub": subject, "exp": expire, "type": token_type}
