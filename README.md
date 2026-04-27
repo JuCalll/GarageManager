@@ -56,6 +56,8 @@ cd TU_REPO
 
    Ese script crea todas las tablas que la aplicación necesita. Si ya existen tablas con el mismo nombre, use otra base de datos o elimine la anterior con cuidado.
 
+   *Alternativa (scripts separados):* en `backend/sql/` existen `01_creacion_tablas.sql` (solo tablas) y `02_datos_prueba.sql` (registros de ejemplo, usuarios demo y relaciones). Puede importarlos en ese orden; el segundo incluye la contraseña de prueba en el comentario inicial del archivo.
+
 4. **Usuario y contraseña de MySQL:** por defecto en XAMPP el usuario suele ser `root` sin contraseña. Si usa otra combinación, regístrela en el `.env` del backend (paso siguiente).
 
 ---
