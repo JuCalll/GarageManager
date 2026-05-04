@@ -44,14 +44,8 @@ export default function Layout() {
     <div className="min-h-screen bg-slate-950 flex">
       {/* Sidebar desktop */}
       <aside className="hidden lg:flex w-64 bg-slate-900 border-r border-slate-800 flex-col">
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <Logo size={36} />
-          <div>
-            <p className="text-white font-bold leading-tight">Garage</p>
-            <p className="text-brand-orange text-xs font-semibold tracking-wider">
-              MANAGER
-            </p>
-          </div>
+        <div className="px-4 py-6 border-b border-slate-800 flex items-center justify-center">
+          <Logo size={140} />
         </div>
         <nav className="flex-1 p-4 space-y-1">
           {NAV.map((item) => (
@@ -98,14 +92,11 @@ export default function Layout() {
             onClick={() => setDrawerAbierto(false)}
           />
           <aside className="absolute left-0 top-0 bottom-0 w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Logo size={32} />
-                <p className="text-white font-bold">Garage Manager</p>
-              </div>
+            <div className="relative px-4 py-6 border-b border-slate-800 flex items-center justify-center">
+              <Logo size={120} />
               <button
                 onClick={() => setDrawerAbierto(false)}
-                className="text-slate-400"
+                className="absolute right-3 top-3 text-slate-400"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -152,9 +143,8 @@ export default function Layout() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="lg:hidden flex items-center gap-2">
-            <Logo size={28} />
-            <span className="text-white font-bold text-sm">Garage Manager</span>
+          <div className="lg:hidden flex items-center">
+            <Logo size={40} />
           </div>
           <div className="flex-1" />
           <SelectorBanda />
