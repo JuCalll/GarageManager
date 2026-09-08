@@ -1,4 +1,5 @@
 import axios from "axios";
+import { limpiarSesion } from "../utils/sesion";
 
 export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -30,7 +31,7 @@ api.interceptors.response.use(
     ) {
       const refreshToken = localStorage.getItem("refresh_token");
       if (!refreshToken) {
-        cerrarSesion();
+        cerrarSesionYRedirigir();
         return Promise.reject(error);
       }
       original._retry = true;
@@ -51,7 +52,7 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.access_token}`;
         return api(original);
       } catch (refreshErr) {
-        cerrarSesion();
+        cerrarSesionYRedirigir();
         return Promise.reject(refreshErr);
       }
     }
@@ -59,10 +60,8 @@ api.interceptors.response.use(
   }
 );
 
-function cerrarSesion() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.removeItem("usuario");
+function cerrarSesionYRedirigir() {
+  limpiarSesion();
   if (window.location.pathname !== "/login" && !window.location.pathname.startsWith("/publico")) {
     window.location.href = "/login";
   }
