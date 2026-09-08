@@ -19,6 +19,10 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
+def buscar_usuario_por_correo(db: Session, correo: str) -> models.Usuario | None:
+    return db.query(models.Usuario).filter(models.Usuario.Correo == correo).first()
+
+
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> models.Usuario:
@@ -30,7 +34,7 @@ def get_current_user(
             detail="Token inválido o expirado",
         )
 
-    usuario = db.query(models.Usuario).filter(models.Usuario.Correo == correo).first()
+    usuario = buscar_usuario_por_correo(db, correo)
     if not usuario:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,9 +49,7 @@ def get_current_user(
     status_code=status.HTTP_201_CREATED,
 )
 def registrar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db)):
-    usuario_existente = (
-        db.query(models.Usuario).filter(models.Usuario.Correo == usuario.Correo).first()
-    )
+    usuario_existente = buscar_usuario_por_correo(db, usuario.Correo)
     if usuario_existente:
         raise HTTPException(
             status_code=400, detail="El correo ya está registrado en Garage Manager"
@@ -71,11 +73,7 @@ def iniciar_sesion(
     credenciales: schemas.UsuarioLogin,
     db: Session = Depends(get_db),
 ):
-    usuario = (
-        db.query(models.Usuario)
-        .filter(models.Usuario.Correo == credenciales.Correo)
-        .first()
-    )
+    usuario = buscar_usuario_por_correo(db, credenciales.Correo)
 
     if not usuario or not verify_password(credenciales.Contrasena, usuario.Contrasena):
         raise HTTPException(
@@ -107,9 +105,7 @@ def refrescar_token(payload: schemas.RefreshRequest, db: Session = Depends(get_d
             detail="Refresh token inválido o expirado",
         )
 
-    usuario = (
-        db.query(models.Usuario).filter(models.Usuario.Correo == correo).first()
-    )
+    usuario = buscar_usuario_por_correo(db, correo)
     if not usuario:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

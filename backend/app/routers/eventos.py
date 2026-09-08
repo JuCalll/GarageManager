@@ -1,28 +1,18 @@
 import logging
-from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.routers.deps import validar_miembro_banda
+from app.routers.deps import obtener_o_404, validar_miembro_banda
 from app.services.notificaciones import notificar_nuevo_evento
+from app.utils.formato import formatear_hora
 
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/eventos", tags=["Eventos"])
-
-
-def _formatear_hora(hora) -> str:
-    if isinstance(hora, timedelta):
-        total = int(hora.total_seconds())
-        h = total // 3600
-        m = (total % 3600) // 60
-        s = total % 60
-        return f"{h:02d}:{m:02d}:{s:02d}"
-    return str(hora)
 
 
 def _evento_to_dict(evento: models.Evento) -> dict:
@@ -31,7 +21,7 @@ def _evento_to_dict(evento: models.Evento) -> dict:
         "BandaId": evento.BandaId,
         "Nombre": evento.Nombre,
         "Fecha": evento.Fecha,
-        "Hora": _formatear_hora(evento.Hora),
+        "Hora": formatear_hora(evento.Hora),
         "Lugar": evento.Lugar,
         "Direccion": evento.Direccion,
         "CondicionPago": evento.CondicionPago,
@@ -46,9 +36,7 @@ def crear_evento(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    banda = db.query(models.Banda).filter(models.Banda.Id == evento.BandaId).first()
-    if not banda:
-        raise HTTPException(status_code=404, detail="La banda no existe")
+    obtener_o_404(db, models.Banda, "La banda no existe", Id=evento.BandaId)
 
     validar_miembro_banda(db, evento.BandaId, usuario_actual.Id)
 
@@ -94,9 +82,7 @@ def actualizar_evento(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    evento = db.query(models.Evento).filter(models.Evento.Id == evento_id).first()
-    if not evento:
-        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    evento = obtener_o_404(db, models.Evento, "Evento no encontrado", Id=evento_id)
 
     validar_miembro_banda(db, evento.BandaId, usuario_actual.Id)
 
@@ -115,9 +101,7 @@ def eliminar_evento(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    evento = db.query(models.Evento).filter(models.Evento.Id == evento_id).first()
-    if not evento:
-        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    evento = obtener_o_404(db, models.Evento, "Evento no encontrado", Id=evento_id)
 
     validar_miembro_banda(db, evento.BandaId, usuario_actual.Id)
     db.delete(evento)

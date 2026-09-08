@@ -8,7 +8,13 @@ from app.config import PUBLIC_PROFILE_RATE_LIMIT
 from app.database import get_db
 from app.rate_limit import limiter
 from app.routers.auth import get_current_user
-from app.routers.deps import validar_miembro_banda, validar_admin_banda
+from app.constantes import ROL_ADMINISTRADOR
+from app.routers.deps import (
+    obtener_o_404,
+    validar_admin_banda,
+    validar_miembro_banda,
+)
+from app.utils.formato import formatear_hora_corta
 
 
 router = APIRouter(prefix="/bandas", tags=["Bandas"])
@@ -35,7 +41,7 @@ def crear_banda(
         miembro = models.MiembroBanda(
             UsuarioId=usuario_actual.Id,
             BandaId=nueva_banda.Id,
-            Rol="Administrador",
+            Rol=ROL_ADMINISTRADOR,
             EsAdministrador=True,
         )
         db.add(miembro)
@@ -72,9 +78,7 @@ def actualizar_banda(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    banda = db.query(models.Banda).filter(models.Banda.Id == banda_id).first()
-    if not banda:
-        raise HTTPException(status_code=404, detail="La banda no existe")
+    banda = obtener_o_404(db, models.Banda, "La banda no existe", Id=banda_id)
 
     validar_admin_banda(db, banda_id, usuario_actual.Id)
 
@@ -115,9 +119,7 @@ def invitar_miembro(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    banda = db.query(models.Banda).filter(models.Banda.Id == banda_id).first()
-    if not banda:
-        raise HTTPException(status_code=404, detail="La banda no existe")
+    obtener_o_404(db, models.Banda, "La banda no existe", Id=banda_id)
 
     validar_admin_banda(db, banda_id, usuario_actual.Id)
 
@@ -166,16 +168,13 @@ def eliminar_miembro(
 ):
     validar_admin_banda(db, banda_id, usuario_actual.Id)
 
-    miembro = (
-        db.query(models.MiembroBanda)
-        .filter(
-            models.MiembroBanda.Id == miembro_id,
-            models.MiembroBanda.BandaId == banda_id,
-        )
-        .first()
+    miembro = obtener_o_404(
+        db,
+        models.MiembroBanda,
+        "Miembro no encontrado",
+        Id=miembro_id,
+        BandaId=banda_id,
     )
-    if not miembro:
-        raise HTTPException(status_code=404, detail="Miembro no encontrado")
 
     if miembro.UsuarioId == usuario_actual.Id:
         raise HTTPException(
@@ -234,13 +233,9 @@ def eliminar_red_social(
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
     validar_admin_banda(db, banda_id, usuario_actual.Id)
-    red = (
-        db.query(models.RedSocial)
-        .filter(models.RedSocial.Id == red_id, models.RedSocial.BandaId == banda_id)
-        .first()
+    red = obtener_o_404(
+        db, models.RedSocial, "Red social no encontrada", Id=red_id, BandaId=banda_id
     )
-    if not red:
-        raise HTTPException(status_code=404, detail="Red social no encontrada")
     db.delete(red)
     db.commit()
 
@@ -248,38 +243,43 @@ def eliminar_red_social(
 # ----------------------------- Perfil público -----------------------------
 
 
+MAX_EVENTOS_PERFIL_PUBLICO = 5
+
+
+def _proximos_eventos(db: Session, banda_id: int) -> list[models.Evento]:
+    return (
+        db.query(models.Evento)
+        .filter(
+            models.Evento.BandaId == banda_id,
+            models.Evento.Fecha >= date.today(),
+        )
+        .order_by(models.Evento.Fecha.asc())
+        .limit(MAX_EVENTOS_PERFIL_PUBLICO)
+        .all()
+    )
+
+
+def _evento_publico_to_dict(evento: models.Evento, ciudad: str | None) -> dict:
+    return {
+        "Nombre": evento.Nombre,
+        "Fecha": evento.Fecha,
+        "Hora": formatear_hora_corta(evento.Hora),
+        "Lugar": evento.Lugar,
+        "Ciudad": ciudad,
+    }
+
+
 @router.get("/publico/{url}", response_model=schemas.BandaPublicaResponse)
 @limiter.limit(PUBLIC_PROFILE_RATE_LIMIT)
 def obtener_perfil_publico(request: Request, url: str, db: Session = Depends(get_db)):
     """Endpoint público (sin autenticación) para compartir con organizadores."""
-    banda = db.query(models.Banda).filter(models.Banda.Url == url).first()
-    if not banda:
-        raise HTTPException(status_code=404, detail="Banda no encontrada")
+    banda = obtener_o_404(db, models.Banda, "Banda no encontrada", Url=url)
 
     redes = (
         db.query(models.RedSocial)
         .filter(models.RedSocial.BandaId == banda.Id)
         .all()
     )
-
-    eventos = (
-        db.query(models.Evento)
-        .filter(
-            models.Evento.BandaId == banda.Id,
-            models.Evento.Fecha >= date.today(),
-        )
-        .order_by(models.Evento.Fecha.asc())
-        .limit(5)
-        .all()
-    )
-
-    def _formatear_hora(hora):
-        if hasattr(hora, "total_seconds"):
-            total = int(hora.total_seconds())
-            h = total // 3600
-            m = (total % 3600) // 60
-            return f"{h:02d}:{m:02d}"
-        return str(hora)[:5]
 
     return {
         "Id": banda.Id,
@@ -291,13 +291,7 @@ def obtener_perfil_publico(request: Request, url: str, db: Session = Depends(get
         "Url": banda.Url,
         "Redes": redes,
         "ProximosEventos": [
-            {
-                "Nombre": e.Nombre,
-                "Fecha": e.Fecha,
-                "Hora": _formatear_hora(e.Hora),
-                "Lugar": e.Lugar,
-                "Ciudad": banda.Ciudad,
-            }
-            for e in eventos
+            _evento_publico_to_dict(evento, banda.Ciudad)
+            for evento in _proximos_eventos(db, banda.Id)
         ],
     }

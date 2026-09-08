@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.routers.deps import validar_miembro_banda
+from app.constantes import EstadoBalance, EstadoMovimiento, TipoMovimiento
+from app.routers.deps import obtener_o_404, validar_miembro_banda
 
 
 router = APIRouter(prefix="/finanzas", tags=["Finanzas"])
@@ -23,9 +24,7 @@ def crear_registro(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    banda = db.query(models.Banda).filter(models.Banda.Id == registro.BandaId).first()
-    if not banda:
-        raise HTTPException(status_code=404, detail="La banda no existe")
+    obtener_o_404(db, models.Banda, "La banda no existe", Id=registro.BandaId)
 
     validar_miembro_banda(db, registro.BandaId, usuario_actual.Id)
 
@@ -89,13 +88,9 @@ def actualizar_registro(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    registro = (
-        db.query(models.RegistroFinanciero)
-        .filter(models.RegistroFinanciero.Id == registro_id)
-        .first()
+    registro = obtener_o_404(
+        db, models.RegistroFinanciero, "Registro no encontrado", Id=registro_id
     )
-    if not registro:
-        raise HTTPException(status_code=404, detail="Registro no encontrado")
 
     validar_miembro_banda(db, registro.BandaId, usuario_actual.Id)
 
@@ -114,13 +109,9 @@ def eliminar_registro(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    registro = (
-        db.query(models.RegistroFinanciero)
-        .filter(models.RegistroFinanciero.Id == registro_id)
-        .first()
+    registro = obtener_o_404(
+        db, models.RegistroFinanciero, "Registro no encontrado", Id=registro_id
     )
-    if not registro:
-        raise HTTPException(status_code=404, detail="Registro no encontrado")
     validar_miembro_banda(db, registro.BandaId, usuario_actual.Id)
     db.delete(registro)
     db.commit()
@@ -136,36 +127,19 @@ def obtener_balance(
 ):
     validar_miembro_banda(db, banda_id, usuario_actual.Id)
 
-    total_ingresos = (
-        db.query(func.coalesce(func.sum(models.RegistroFinanciero.Monto), 0))
-        .filter(
-            models.RegistroFinanciero.BandaId == banda_id,
-            models.RegistroFinanciero.Tipo == "ingreso",
-            models.RegistroFinanciero.Estado == "cobrado",
-        )
-        .scalar()
+    ingresos = _sumar_montos(
+        db,
+        banda_id,
+        tipo=TipoMovimiento.INGRESO,
+        estado=EstadoMovimiento.COBRADO,
     )
-    ingresos_pendientes = (
-        db.query(func.coalesce(func.sum(models.RegistroFinanciero.Monto), 0))
-        .filter(
-            models.RegistroFinanciero.BandaId == banda_id,
-            models.RegistroFinanciero.Tipo == "ingreso",
-            models.RegistroFinanciero.Estado == "pendiente",
-        )
-        .scalar()
+    pendientes = _sumar_montos(
+        db,
+        banda_id,
+        tipo=TipoMovimiento.INGRESO,
+        estado=EstadoMovimiento.PENDIENTE,
     )
-    total_gastos = (
-        db.query(func.coalesce(func.sum(models.RegistroFinanciero.Monto), 0))
-        .filter(
-            models.RegistroFinanciero.BandaId == banda_id,
-            models.RegistroFinanciero.Tipo == "gasto",
-        )
-        .scalar()
-    )
-
-    ingresos = Decimal(total_ingresos or 0)
-    pendientes = Decimal(ingresos_pendientes or 0)
-    gastos = Decimal(total_gastos or 0)
+    gastos = _sumar_montos(db, banda_id, tipo=TipoMovimiento.GASTO)
 
     balances_individuales = _calcular_balances_individuales(db, banda_id)
 
@@ -179,6 +153,31 @@ def obtener_balance(
     }
 
 
+def _sumar_montos(
+    db: Session,
+    banda_id: int,
+    *,
+    tipo: str | None = None,
+    estado: str | None = None,
+    usuario_pago_id: int | None = None,
+) -> Decimal:
+    """Suma los montos de una banda aplicando sólo los filtros indicados."""
+    consulta = db.query(
+        func.coalesce(func.sum(models.RegistroFinanciero.Monto), 0)
+    ).filter(models.RegistroFinanciero.BandaId == banda_id)
+
+    if tipo is not None:
+        consulta = consulta.filter(models.RegistroFinanciero.Tipo == tipo)
+    if estado is not None:
+        consulta = consulta.filter(models.RegistroFinanciero.Estado == estado)
+    if usuario_pago_id is not None:
+        consulta = consulta.filter(
+            models.RegistroFinanciero.UsuarioPagoId == usuario_pago_id
+        )
+
+    return Decimal(consulta.scalar() or 0)
+
+
 def _calcular_balances_individuales(db: Session, banda_id: int) -> list[dict]:
     miembros = (
         db.query(models.MiembroBanda, models.Usuario)
@@ -189,35 +188,23 @@ def _calcular_balances_individuales(db: Session, banda_id: int) -> list[dict]:
 
     resultado = []
     for _miembro, usuario in miembros:
-        total_aportado = (
-            db.query(func.coalesce(func.sum(models.RegistroFinanciero.Monto), 0))
-            .filter(
-                models.RegistroFinanciero.BandaId == banda_id,
-                models.RegistroFinanciero.Tipo == "gasto",
-                models.RegistroFinanciero.UsuarioPagoId == usuario.Id,
-            )
-            .scalar()
+        aportado = _sumar_montos(
+            db,
+            banda_id,
+            tipo=TipoMovimiento.GASTO,
+            usuario_pago_id=usuario.Id,
         )
-        pendiente_reembolso = (
-            db.query(func.coalesce(func.sum(models.RegistroFinanciero.Monto), 0))
-            .filter(
-                models.RegistroFinanciero.BandaId == banda_id,
-                models.RegistroFinanciero.Tipo == "gasto",
-                models.RegistroFinanciero.UsuarioPagoId == usuario.Id,
-                models.RegistroFinanciero.Estado == "pendiente",
-            )
-            .scalar()
+        pendiente = _sumar_montos(
+            db,
+            banda_id,
+            tipo=TipoMovimiento.GASTO,
+            estado=EstadoMovimiento.PENDIENTE,
+            usuario_pago_id=usuario.Id,
         )
 
-        pendiente = Decimal(pendiente_reembolso or 0)
-        aportado = Decimal(total_aportado or 0)
-
-        if pendiente > 0:
-            estado = "a favor"
-        elif aportado > 0:
-            estado = "al dia"
-        else:
-            estado = "al dia"
+        estado = (
+            EstadoBalance.A_FAVOR if pendiente > 0 else EstadoBalance.AL_DIA
+        )
 
         resultado.append(
             {

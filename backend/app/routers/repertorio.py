@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app import models, schemas
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.routers.deps import validar_miembro_banda
+from app.routers.deps import obtener_o_404, validar_miembro_banda
 
 
 router = APIRouter(prefix="/repertorio", tags=["Repertorio"])
@@ -61,9 +61,7 @@ def actualizar_cancion(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    cancion = db.query(models.Cancion).filter(models.Cancion.Id == cancion_id).first()
-    if not cancion:
-        raise HTTPException(status_code=404, detail="Canción no encontrada")
+    cancion = obtener_o_404(db, models.Cancion, "Canción no encontrada", Id=cancion_id)
     validar_miembro_banda(db, cancion.BandaId, usuario_actual.Id)
 
     for campo, valor in cambios.model_dump(exclude_unset=True).items():
@@ -80,9 +78,7 @@ def eliminar_cancion(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    cancion = db.query(models.Cancion).filter(models.Cancion.Id == cancion_id).first()
-    if not cancion:
-        raise HTTPException(status_code=404, detail="Canción no encontrada")
+    cancion = obtener_o_404(db, models.Cancion, "Canción no encontrada", Id=cancion_id)
     validar_miembro_banda(db, cancion.BandaId, usuario_actual.Id)
 
     db.delete(cancion)
@@ -118,6 +114,13 @@ def _serializar_setlist(setlist: models.Setlist) -> dict:
         ],
         "DuracionTotalSegundos": duracion_total,
     }
+
+
+def _consulta_setlists(db: Session):
+    """Consulta base de setlists con sus items y canciones ya cargados."""
+    return db.query(models.Setlist).options(
+        joinedload(models.Setlist.Items).joinedload(models.SetlistItem.Cancion)
+    )
 
 
 def _aplicar_items(db: Session, setlist: models.Setlist, items: list[schemas.SetlistItemBase]):
@@ -162,8 +165,7 @@ def listar_setlists(
     validar_miembro_banda(db, banda_id, usuario_actual.Id)
 
     setlists = (
-        db.query(models.Setlist)
-        .options(joinedload(models.Setlist.Items).joinedload(models.SetlistItem.Cancion))
+        _consulta_setlists(db)
         .filter(models.Setlist.BandaId == banda_id)
         .order_by(models.Setlist.FechaCreacion.desc())
         .all()
@@ -177,12 +179,7 @@ def obtener_setlist(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    setlist = (
-        db.query(models.Setlist)
-        .options(joinedload(models.Setlist.Items).joinedload(models.SetlistItem.Cancion))
-        .filter(models.Setlist.Id == setlist_id)
-        .first()
-    )
+    setlist = _consulta_setlists(db).filter(models.Setlist.Id == setlist_id).first()
     if not setlist:
         raise HTTPException(status_code=404, detail="Setlist no encontrado")
     validar_miembro_banda(db, setlist.BandaId, usuario_actual.Id)
@@ -198,14 +195,11 @@ def obtener_setlist_de_evento(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    evento = db.query(models.Evento).filter(models.Evento.Id == evento_id).first()
-    if not evento:
-        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    evento = obtener_o_404(db, models.Evento, "Evento no encontrado", Id=evento_id)
     validar_miembro_banda(db, evento.BandaId, usuario_actual.Id)
 
     setlist = (
-        db.query(models.Setlist)
-        .options(joinedload(models.Setlist.Items).joinedload(models.SetlistItem.Cancion))
+        _consulta_setlists(db)
         .filter(models.Setlist.EventoId == evento_id)
         .order_by(models.Setlist.FechaCreacion.desc())
         .first()
@@ -259,9 +253,7 @@ def actualizar_setlist(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    setlist = db.query(models.Setlist).filter(models.Setlist.Id == setlist_id).first()
-    if not setlist:
-        raise HTTPException(status_code=404, detail="Setlist no encontrado")
+    setlist = obtener_o_404(db, models.Setlist, "Setlist no encontrado", Id=setlist_id)
     validar_miembro_banda(db, setlist.BandaId, usuario_actual.Id)
 
     datos = cambios.model_dump(exclude_unset=True)
@@ -295,9 +287,7 @@ def eliminar_setlist(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    setlist = db.query(models.Setlist).filter(models.Setlist.Id == setlist_id).first()
-    if not setlist:
-        raise HTTPException(status_code=404, detail="Setlist no encontrado")
+    setlist = obtener_o_404(db, models.Setlist, "Setlist no encontrado", Id=setlist_id)
     validar_miembro_banda(db, setlist.BandaId, usuario_actual.Id)
 
     db.delete(setlist)
