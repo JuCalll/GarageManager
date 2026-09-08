@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import Logo from "../components/Logo";
 import { guardarSesion, loginUsuario, registrarUsuario } from "../api/auth";
+import { mensajeError } from "../utils/errores";
 
 export default function Registro() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function Registro() {
       guardarSesion(data);
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo crear la cuenta");
+      setError(mensajeError(err, "No se pudo crear la cuenta"));
     } finally {
       setEnviando(false);
     }

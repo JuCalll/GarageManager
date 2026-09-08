@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { listarMisBandas } from "../api/bandas";
 import { estaAutenticado } from "../api/auth";
+import { mensajeError } from "../utils/errores";
 
 const BandaContext = createContext(null);
 
@@ -37,7 +38,7 @@ export function BandaProvider({ children }) {
         localStorage.removeItem("banda_activa_id");
       }
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudieron cargar las bandas");
+      setError(mensajeError(err, "No se pudieron cargar las bandas"));
     } finally {
       setCargando(false);
     }

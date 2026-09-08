@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import Logo from "../components/Logo";
 import { guardarSesion, loginUsuario } from "../api/auth";
+import { mensajeError } from "../utils/errores";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export default function Login() {
       guardarSesion(data);
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo iniciar sesión");
+      setError(mensajeError(err, "No se pudo iniciar sesión"));
     } finally {
       setEnviando(false);
     }
