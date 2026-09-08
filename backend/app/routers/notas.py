@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.routers.deps import validar_miembro_banda
+from app.routers.deps import obtener_o_404, validar_miembro_banda
 
 
 router = APIRouter(prefix="/notas", tags=["Notas"])
@@ -68,9 +68,7 @@ def actualizar_nota(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    nota = db.query(models.NotaInterna).filter(models.NotaInterna.Id == nota_id).first()
-    if not nota:
-        raise HTTPException(status_code=404, detail="La nota no existe")
+    nota = obtener_o_404(db, models.NotaInterna, "La nota no existe", Id=nota_id)
 
     validar_miembro_banda(db, nota.BandaId, usuario_actual.Id)
 
@@ -89,9 +87,7 @@ def eliminar_nota(
     db: Session = Depends(get_db),
     usuario_actual: models.Usuario = Depends(get_current_user),
 ):
-    nota = db.query(models.NotaInterna).filter(models.NotaInterna.Id == nota_id).first()
-    if not nota:
-        raise HTTPException(status_code=404, detail="La nota no existe")
+    nota = obtener_o_404(db, models.NotaInterna, "La nota no existe", Id=nota_id)
 
     validar_miembro_banda(db, nota.BandaId, usuario_actual.Id)
     db.delete(nota)
