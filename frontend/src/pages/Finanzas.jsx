@@ -22,9 +22,18 @@ import {
 import { listarMiembros } from "../api/bandas";
 import { listarEventosBanda } from "../api/eventos";
 import Modal from "../components/Modal";
+import CampoSelect from "../components/CampoSelect";
 import EstadoVacio from "../components/EstadoVacio";
 import { formatearFecha, formatearMoneda } from "../utils/format";
 import { exportarCSV, exportarPDFImpresion } from "../utils/export";
+import {
+  CATEGORIAS_MOVIMIENTO,
+  ESTADOS_MOVIMIENTO,
+  TIPOS_MOVIMIENTO,
+  claseEstado,
+  conOpcionTodos,
+} from "../utils/catalogos";
+import { mensajeError } from "../utils/errores";
 
 const FORM_INICIAL = {
   Tipo: "ingreso",
@@ -35,6 +44,14 @@ const FORM_INICIAL = {
   Estado: "pendiente",
   EventoId: "",
   UsuarioPagoId: "",
+};
+
+const FILTROS_INICIALES = {
+  tipo: "todos",
+  estado: "todos",
+  desde: "",
+  hasta: "",
+  categoria: "todas",
 };
 
 export default function Finanzas() {
@@ -48,13 +65,7 @@ export default function Finanzas() {
   const [editando, setEditando] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
-  const [filtros, setFiltros] = useState({
-    tipo: "todos",
-    estado: "todos",
-    desde: "",
-    hasta: "",
-    categoria: "todas",
-  });
+  const [filtros, setFiltros] = useState(FILTROS_INICIALES);
 
   const cargar = async () => {
     if (!bandaActiva) {
@@ -139,7 +150,7 @@ export default function Finanzas() {
       setEditando(null);
       await cargar();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo guardar el registro");
+      setError(mensajeError(err, "No se pudo guardar el registro"));
     } finally {
       setEnviando(false);
     }
@@ -151,7 +162,7 @@ export default function Finanzas() {
       await eliminarRegistroFinanciero(id);
       await cargar();
     } catch (err) {
-      alert(err.response?.data?.detail || "No se pudo eliminar");
+      alert(mensajeError(err, "No se pudo eliminar"));
     }
   };
 
@@ -292,35 +303,19 @@ export default function Finanzas() {
               label="Tipo"
               value={filtros.tipo}
               onChange={(v) => setFiltros((f) => ({ ...f, tipo: v }))}
-              options={[
-                { value: "todos", label: "Todos" },
-                { value: "ingreso", label: "Ingresos" },
-                { value: "gasto", label: "Gastos" },
-              ]}
+              options={conOpcionTodos(TIPOS_MOVIMIENTO)}
             />
             <SelectFiltro
               label="Estado"
               value={filtros.estado}
               onChange={(v) => setFiltros((f) => ({ ...f, estado: v }))}
-              options={[
-                { value: "todos", label: "Todos" },
-                { value: "pendiente", label: "Pendiente" },
-                { value: "cobrado", label: "Cobrado" },
-                { value: "reembolsado", label: "Reembolsado" },
-              ]}
+              options={conOpcionTodos(ESTADOS_MOVIMIENTO)}
             />
             <SelectFiltro
               label="Categoría"
               value={filtros.categoria}
               onChange={(v) => setFiltros((f) => ({ ...f, categoria: v }))}
-              options={[
-                { value: "todas", label: "Todas" },
-                { value: "transporte", label: "Transporte" },
-                { value: "sonido", label: "Sonido" },
-                { value: "equipos", label: "Equipos" },
-                { value: "promocion", label: "Promoción" },
-                { value: "otros", label: "Otros" },
-              ]}
+              options={conOpcionTodos(CATEGORIAS_MOVIMIENTO, "todas", "Todas")}
             />
             <label className="text-xs text-slate-400">
               Desde
@@ -342,15 +337,7 @@ export default function Finanzas() {
             </label>
             {filtroActivo && (
               <button
-                onClick={() =>
-                  setFiltros({
-                    tipo: "todos",
-                    estado: "todos",
-                    desde: "",
-                    hasta: "",
-                    categoria: "todas",
-                  })
-                }
+                onClick={() => setFiltros(FILTROS_INICIALES)}
                 className="text-xs text-brand-orange hover:text-brand-coral inline-flex items-center gap-1"
               >
                 <XIcon className="w-3 h-3" /> Limpiar
@@ -461,18 +448,13 @@ export default function Finanzas() {
         titulo={editando ? "Editar registro" : "Nuevo registro"}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Tipo</label>
-            <select
-              name="Tipo"
-              value={form.Tipo}
-              onChange={handleChange}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200"
-            >
-              <option value="ingreso">Ingreso</option>
-              <option value="gasto">Gasto</option>
-            </select>
-          </div>
+          <CampoSelect
+            label="Tipo"
+            name="Tipo"
+            value={form.Tipo}
+            onChange={handleChange}
+            opciones={TIPOS_MOVIMIENTO}
+          />
           <Campo
             label="Concepto"
             name="Concepto"
@@ -501,74 +483,48 @@ export default function Finanzas() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Categoría</label>
-            <select
-              name="Categoria"
-              value={form.Categoria}
-              onChange={handleChange}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200"
-            >
-              <option value="">— Sin categoría —</option>
-              <option value="transporte">Transporte</option>
-              <option value="sonido">Sonido</option>
-              <option value="equipos">Equipos</option>
-              <option value="promocion">Promoción</option>
-              <option value="otros">Otros</option>
-            </select>
-          </div>
+          <CampoSelect
+            label="Categoría"
+            name="Categoria"
+            value={form.Categoria}
+            onChange={handleChange}
+            placeholder="— Sin categoría —"
+            opciones={CATEGORIAS_MOVIMIENTO}
+          />
 
           {form.Tipo === "gasto" && (
-            <div>
-              <label className="block text-sm text-slate-300 mb-1">
-                Responsable del pago
-              </label>
-              <select
-                name="UsuarioPagoId"
-                value={form.UsuarioPagoId}
-                onChange={handleChange}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200"
-              >
-                <option value="">— Sin asignar —</option>
-                {miembros.map((m) => (
-                  <option key={m.UsuarioId} value={m.UsuarioId}>
-                    {m.Usuario.Nombre} ({m.Rol})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CampoSelect
+              label="Responsable del pago"
+              name="UsuarioPagoId"
+              value={form.UsuarioPagoId}
+              onChange={handleChange}
+              placeholder="— Sin asignar —"
+              opciones={miembros.map((m) => ({
+                value: m.UsuarioId,
+                label: `${m.Usuario.Nombre} (${m.Rol})`,
+              }))}
+            />
           )}
 
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Estado</label>
-            <select
-              name="Estado"
-              value={form.Estado}
-              onChange={handleChange}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200"
-            >
-              <option value="pendiente">Pendiente</option>
-              <option value="cobrado">Cobrado</option>
-              <option value="reembolsado">Reembolsado</option>
-            </select>
-          </div>
+          <CampoSelect
+            label="Estado"
+            name="Estado"
+            value={form.Estado}
+            onChange={handleChange}
+            opciones={ESTADOS_MOVIMIENTO}
+          />
 
-          <div>
-            <label className="block text-sm text-slate-300 mb-1">Evento (opcional)</label>
-            <select
-              name="EventoId"
-              value={form.EventoId}
-              onChange={handleChange}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200"
-            >
-              <option value="">— Sin evento —</option>
-              {eventos.map((e) => (
-                <option key={e.Id} value={e.Id}>
-                  {e.Nombre} ({formatearFecha(e.Fecha)})
-                </option>
-              ))}
-            </select>
-          </div>
+          <CampoSelect
+            label="Evento (opcional)"
+            name="EventoId"
+            value={form.EventoId}
+            onChange={handleChange}
+            placeholder="— Sin evento —"
+            opciones={eventos.map((e) => ({
+              value: e.Id,
+              label: `${e.Nombre} (${formatearFecha(e.Fecha)})`,
+            }))}
+          />
 
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button
@@ -620,16 +576,11 @@ function SelectFiltro({ label, value, onChange, options }) {
 }
 
 function EstadoBadge({ estado }) {
-  const map = {
-    pendiente: "bg-yellow-500/15 text-yellow-300",
-    cobrado: "bg-brand-orange/15 text-brand-orange",
-    reembolsado: "bg-brand-red/15 text-brand-coral",
-  };
   return (
     <span
-      className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${
-        map[estado] || "bg-slate-700/40 text-slate-300"
-      }`}
+      className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${claseEstado(
+        estado
+      )}`}
     >
       {estado}
     </span>
