@@ -6,8 +6,6 @@ export const crearEvento = (payload) =>
 export const listarEventosBanda = (bandaId) =>
   api.get(`/eventos/banda/${bandaId}`).then((r) => r.data);
 
-export const listarEventos = listarEventosBanda;
-
 export const actualizarEvento = (eventoId, payload) =>
   api.put(`/eventos/${eventoId}`, payload).then((r) => r.data);
 
