@@ -1,13 +1,11 @@
 import api from "./axios";
+import { limpiarSesion } from "../utils/sesion";
 
 export const registrarUsuario = (payload) =>
   api.post("/auth/registro", payload).then((r) => r.data);
 
 export const loginUsuario = (payload) =>
   api.post("/auth/login", payload).then((r) => r.data);
-
-export const obtenerUsuarioActual = () =>
-  api.get("/auth/me").then((r) => r.data);
 
 export const guardarSesion = ({ access_token, refresh_token, usuario }) => {
   localStorage.setItem("access_token", access_token);
@@ -26,9 +24,4 @@ export const obtenerUsuarioLocal = () => {
 
 export const estaAutenticado = () => Boolean(localStorage.getItem("access_token"));
 
-export const cerrarSesion = () => {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.removeItem("usuario");
-  localStorage.removeItem("banda_activa_id");
-};
+export const cerrarSesion = limpiarSesion;

@@ -10,6 +10,7 @@ import {
 import Modal from "../components/Modal";
 import EstadoVacio from "../components/EstadoVacio";
 import { formatearFecha } from "../utils/format";
+import { mensajeError } from "../utils/errores";
 
 const FORM_INICIAL = { Contenido: "" };
 
@@ -67,7 +68,7 @@ export default function Notas() {
       setEditando(null);
       await cargar();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo guardar la nota");
+      setError(mensajeError(err, "No se pudo guardar la nota"));
     } finally {
       setEnviando(false);
     }
@@ -79,7 +80,7 @@ export default function Notas() {
       await eliminarNota(id);
       await cargar();
     } catch (err) {
-      alert(err.response?.data?.detail || "No se pudo eliminar");
+      alert(mensajeError(err, "No se pudo eliminar"));
     }
   };
 

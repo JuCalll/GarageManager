@@ -22,6 +22,7 @@ import Modal from "../components/Modal";
 import EstadoVacio from "../components/EstadoVacio";
 import { formatearFechaHora } from "../utils/format";
 import { notificarRefresh } from "../components/CampanaNotificaciones";
+import { mensajeError } from "../utils/errores";
 
 const FORM_INICIAL = {
   Nombre: "",
@@ -126,7 +127,7 @@ export default function Eventos() {
       setEditando(null);
       await cargar();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo guardar el evento");
+      setError(mensajeError(err, "No se pudo guardar el evento"));
     } finally {
       setEnviando(false);
     }
@@ -138,7 +139,7 @@ export default function Eventos() {
       await eliminarEvento(id);
       await cargar();
     } catch (err) {
-      alert(err.response?.data?.detail || "No se pudo eliminar");
+      alert(mensajeError(err, "No se pudo eliminar"));
     }
   };
 

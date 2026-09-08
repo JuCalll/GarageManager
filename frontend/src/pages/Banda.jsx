@@ -22,6 +22,7 @@ import {
 } from "../api/bandas";
 import Modal from "../components/Modal";
 import EstadoVacio from "../components/EstadoVacio";
+import { mensajeError } from "../utils/errores";
 
 const slugify = (texto) =>
   texto
@@ -108,7 +109,7 @@ export default function Banda() {
       setForm(FORM_INICIAL);
       await recargarBandas();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo crear la banda");
+      setError(mensajeError(err, "No se pudo crear la banda"));
     } finally {
       setEnviando(false);
     }
@@ -143,7 +144,7 @@ export default function Banda() {
       setModalEditar(false);
       await recargarBandas();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo actualizar la banda");
+      setError(mensajeError(err, "No se pudo actualizar la banda"));
     } finally {
       setEnviando(false);
     }
@@ -159,7 +160,7 @@ export default function Banda() {
       setFormMiembro({ Correo: "", Rol: "", EsAdministrador: false });
       await cargarDetalle();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo invitar al miembro");
+      setError(mensajeError(err, "No se pudo invitar al miembro"));
     } finally {
       setEnviando(false);
     }
@@ -171,7 +172,7 @@ export default function Banda() {
       await eliminarMiembro(bandaActiva.Id, miembroId);
       await cargarDetalle();
     } catch (err) {
-      alert(err.response?.data?.detail || "No se pudo eliminar");
+      alert(mensajeError(err, "No se pudo eliminar"));
     }
   };
 
@@ -185,7 +186,7 @@ export default function Banda() {
       setFormRed({ Plataforma: "Instagram", Url: "" });
       await cargarDetalle();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo agregar la red");
+      setError(mensajeError(err, "No se pudo agregar la red"));
     } finally {
       setEnviando(false);
     }
@@ -197,7 +198,7 @@ export default function Banda() {
       await eliminarRed(bandaActiva.Id, redId);
       await cargarDetalle();
     } catch (err) {
-      alert(err.response?.data?.detail || "No se pudo eliminar");
+      alert(mensajeError(err, "No se pudo eliminar"));
     }
   };
 
