@@ -30,6 +30,7 @@ import {
   parsearDuracion,
   formatearFecha,
 } from "../utils/format";
+import { mensajeError } from "../utils/errores";
 
 const FORM_CANCION = {
   Titulo: "",
@@ -136,7 +137,7 @@ export default function Repertorio() {
       setEditandoCancion(null);
       await cargar();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo guardar la canción");
+      setError(mensajeError(err, "No se pudo guardar la canción"));
     } finally {
       setEnviando(false);
     }
@@ -148,7 +149,7 @@ export default function Repertorio() {
       await eliminarCancion(id);
       await cargar();
     } catch (err) {
-      alert(err.response?.data?.detail || "No se pudo eliminar");
+      alert(mensajeError(err, "No se pudo eliminar"));
     }
   };
 
@@ -182,15 +183,18 @@ export default function Repertorio() {
     }));
   };
 
-  const moverItem = (idx, dir) => {
+  const intercambiarItems = (idx, destino) => {
     setFormSetlist((f) => {
+      if (destino < 0 || destino >= f.Items.length) return f;
       const items = [...f.Items];
-      const ni = idx + dir;
-      if (ni < 0 || ni >= items.length) return f;
-      [items[idx], items[ni]] = [items[ni], items[idx]];
+      [items[idx], items[destino]] = [items[destino], items[idx]];
       return { ...f, Items: items };
     });
   };
+
+  const subirItem = (idx) => intercambiarItems(idx, idx - 1);
+
+  const bajarItem = (idx) => intercambiarItems(idx, idx + 1);
 
   const removerItem = (idx) => {
     setFormSetlist((f) => ({
@@ -225,7 +229,7 @@ export default function Repertorio() {
       setFormSetlist(FORM_SETLIST);
       await cargar();
     } catch (err) {
-      setError(err.response?.data?.detail || "No se pudo guardar el setlist");
+      setError(mensajeError(err, "No se pudo guardar el setlist"));
     } finally {
       setEnviando(false);
     }
@@ -237,7 +241,7 @@ export default function Repertorio() {
       await eliminarSetlist(id);
       await cargar();
     } catch (err) {
-      alert(err.response?.data?.detail || "No se pudo eliminar");
+      alert(mensajeError(err, "No se pudo eliminar"));
     }
   };
 
@@ -246,13 +250,6 @@ export default function Repertorio() {
     canciones.forEach((c) => m.set(c.Id, c));
     return m;
   }, [canciones]);
-
-  const duracionTotalSetlist = (items) =>
-    items.reduce(
-      (acc, it) =>
-        acc + (cancionesIndex.get(it.CancionId)?.DuracionSegundos || 0),
-      0
-    );
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
@@ -387,7 +384,7 @@ export default function Repertorio() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {setlists.map((s) => {
                     const evento = eventos.find((e) => e.Id === s.EventoId);
-                    const total = duracionTotalSetlist(s.Items || []);
+                    const total = s.DuracionTotalSegundos;
                     return (
                       <article
                         key={s.Id}
@@ -608,7 +605,7 @@ export default function Repertorio() {
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => moverItem(idx, -1)}
+                        onClick={() => subirItem(idx)}
                         className="text-slate-500 hover:text-brand-orange p-1"
                         aria-label="Subir"
                       >
@@ -616,7 +613,7 @@ export default function Repertorio() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => moverItem(idx, 1)}
+                        onClick={() => bajarItem(idx)}
                         className="text-slate-500 hover:text-brand-orange p-1"
                         aria-label="Bajar"
                       >
